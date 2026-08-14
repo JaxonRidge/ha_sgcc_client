@@ -5,9 +5,8 @@
     "config_flow": true,
     "dependencies": ["http"],
     "documentation": "https://github.com/JaxonRidge/ha_sgcc_client",
-    "integration_type": "hub",
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/JaxonRidge/ha_sgcc_client/issues",
     "requirements": ["pycryptodome>=3.23"],
-    "version": "1.0.1"
+    "version": "1.0.2"
 }
