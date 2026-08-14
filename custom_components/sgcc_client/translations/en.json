@@ -53,7 +53,7 @@
   "entity": {
     "sensor": {
       "balance_entity": {
-        "name": "Account Balance"
+        "name": "SGCC Account Balance"
       },
       "month_acc_entity": {
         "name": "Monthly Usage (This Month)"

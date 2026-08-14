@@ -9,5 +9,5 @@
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/JaxonRidge/ha_sgcc_client/issues",
     "requirements": ["pycryptodome>=3.23"],
-    "version": "1.0.0"
+    "version": "1.0.1"
 }
