@@ -17,6 +17,27 @@
           "password": "Password"
         }
       },
+      "device_verification": {
+        "title": "Device Verification (Risk Control)",
+        "description": "The server requires SMS verification to confirm device identity. A code was sent to number ending {phone_suffix}. Enter the 6-digit code.",
+        "data": {
+          "verification_code": "SMS Verification Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authentication",
+        "description": "The system will automatically re-run the ritual using the saved password. If the password changed, you can re-enter it next. {auth_error}",
+        "data": {
+          "continue": "Continue"
+        }
+      },
+      "reauth_credentials": {
+        "title": "Update Password",
+        "description": "Enter the current account password to complete re-authentication.",
+        "data": {
+          "password": "Password"
+        }
+      },
       "reconfigure": {
         "title": "Reconfigure Account",
         "data": {
@@ -28,11 +49,14 @@
     "error": {
       "terms_not_accepted": "You must accept the terms to proceed.",
       "invalid_username_format": "Invalid username format. Please use a mobile number.",
-      "invalid_auth": "Authentication failed: Wrong username or password.",
-      "cannot_connect": "Cannot connect to gateway.",
-      "rk001_blocked": "Risk Control (RK001) triggered. Account or IP blocked. Try again later.",
-      "unknown": "Unknown error occurred.",
-      "reconfigure_failed": "Failed to reconfigure."
+      "invalid_auth": "Login failed ({error_code}): {error_message}",
+      "cannot_connect": "Cannot connect to gateway ({error_code}): {error_message}",
+      "cannot_send_verification_code": "Failed to send verification SMS ({error_code}): {error_message}",
+      "interactive_challenge_unsupported": "Interactive risk control is not auto-passable ({error_code}): {error_message}",
+      "invalid_verification_code": "Wrong or expired verification code ({error_code}): {error_message}",
+      "local_error": "Failed to build the request locally ({error_type}): {error_message}",
+      "server_error": "Server error [{error_source}] {error_code}: {error_message}",
+      "unknown": "Unexpected error ({error_type}): {error_message}"
     },
     "abort": {
       "limit_exceeded": "Maximum 4 accounts allowed.",
@@ -42,10 +66,10 @@
   "options": {
     "step": {
       "init": {
-        "title": "Sync Settings",
-        "description": "Set the frequency of data synchronization. A built-in 24h data-freshness guard skips requests while cached data is valid, so shorter intervals never increase request frequency - they only refresh faster after data expires. Data updates every morning around 9 AM.",
+        "title": "Integration Settings",
+        "description": "Data syncs automatically once a day (the time is fixed per account, spread across 9:00-21:00). No manual configuration needed.",
         "data": {
-          "scan_interval": "Update Interval (Hours)"
+          "enable_frontend_card": "Enable custom frontend card support (global)"
         }
       }
     }
