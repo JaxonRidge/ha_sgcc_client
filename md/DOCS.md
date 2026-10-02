@@ -16,8 +16,8 @@
 
 集成添加后，点击 **“选项”** 可实时调整以下高级参数：
 
-- 数据刷新周期：支持 3 至 12 小时调节。
-- 推演律动：建议保持默认的 6 小时，过高的刷新频率可能导致术数模型被因果扰动（触发服务端封禁）。
+- 数据每日自动同步一次（时刻按账户固定散布于 9~21 点），无需手动配置。
+- 启用自定义前端 UI 支持（全局）：开启前端卡片。
 
 ---
 
@@ -34,10 +34,10 @@
 
 ## 📈 前端展示建议
 
-### 示例 1：CTC Client Card
+### 示例 1：SGCC Client Card
 ```yaml
 type: custom:sgcc-client-card
-entity: sensor._account_balance #默认
+entity: sensor._sgcc_account_balance #默认
 ```
 
 ---
