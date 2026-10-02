@@ -17,6 +17,27 @@
           "password": "密码"
         }
       },
+      "device_verification": {
+        "title": "设备验证 (触发风控)",
+        "description": "系统要求短信验证以确认设备身份，验证码已发送至尾号 {phone_suffix}。请输入收到的 6 位验证码。",
+        "data": {
+          "verification_code": "短信验证码"
+        }
+      },
+      "reauth_confirm": {
+        "title": "重新认证",
+        "description": "系统将使用已保存的密码自动重新推演。若密码已变更，下一步可重新输入。{auth_error}",
+        "data": {
+          "continue": "继续"
+        }
+      },
+      "reauth_credentials": {
+        "title": "更新密码",
+        "description": "请输入当前账号密码以完成重新认证。",
+        "data": {
+          "password": "密码"
+        }
+      },
       "reconfigure": {
         "title": "重新配置账户",
         "data": {
@@ -28,11 +49,14 @@
     "error": {
       "terms_not_accepted": "必须接受免责条款才能继续。",
       "invalid_username_format": "账号格式不正确，请输入手机号。",
-      "invalid_auth": "身份推演失败：账号或密码错误。",
-      "cannot_connect": "无法连接至推演网关，请检查网络或中转地址。",
-      "rk001_blocked": "触发 RK001 风控封印，当前账号或 IP 已被拦截，请稍后再试。",
-      "unknown": "天机紊乱：发生未知异常。",
-      "reconfigure_failed": "重新配置推演失败。"
+      "invalid_auth": "登录失败（{error_code}）：{error_message}",
+      "cannot_connect": "无法连接推演网关（{error_code}）：{error_message}",
+      "cannot_send_verification_code": "无法下发验证短信（{error_code}）：{error_message}",
+      "interactive_challenge_unsupported": "交互式风控暂不支持自动通过（{error_code}）：{error_message}",
+      "invalid_verification_code": "验证码错误或已失效（{error_code}）：{error_message}",
+      "local_error": "本地构造请求失败（{error_type}）：{error_message}",
+      "server_error": "服务端返回异常 [{error_source}] {error_code}：{error_message}",
+      "unknown": "未预期错误（{error_type}）：{error_message}"
     },
     "abort": {
       "limit_exceeded": "环境定力不足：系统中最多只能承载 4 个账户。",
@@ -42,10 +66,10 @@
   "options": {
     "step": {
       "init": {
-        "title": "调整推演定力",
-        "description": "设置数据自动同步的频率。集成内置 24 小时数据新鲜度保护：数据未过期时不会发起任何请求，短间隔不会增加请求次数，只决定数据过期后多久刷新。数据每日早 9 点更新，建议选 6 小时以便及时同步。",
+        "title": "集成设置",
+        "description": "数据每日自动同步一次（时刻按账户固定散布于 9~21 点），无需手动配置。",
         "data": {
-          "scan_interval": "推演周期 (单位: 小时)"
+          "enable_frontend_card": "启用自定义前端卡片支持（全局）"
         }
       }
     }

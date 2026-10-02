@@ -38,7 +38,7 @@ METER_SENSOR_TYPES: tuple[SgccSensorEntityDescription, ...] = (
         translation_key="month_acc_entity",
         icon="mdi:lightning-bolt",
         native_unit_of_measurement="kWh",
-        state_class=SensorStateClass.TOTAL,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("state"),
         attr_fn=lambda data: data.get("attrs"),
     ),
@@ -47,7 +47,7 @@ METER_SENSOR_TYPES: tuple[SgccSensorEntityDescription, ...] = (
         translation_key="monthly_bill_entity",
         icon="mdi:calendar-month",
         native_unit_of_measurement="kWh",
-        state_class=SensorStateClass.TOTAL,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("state"),
         attr_fn=lambda data: data.get("attrs"),
     ),
@@ -56,7 +56,7 @@ METER_SENSOR_TYPES: tuple[SgccSensorEntityDescription, ...] = (
         translation_key="yearly_summary_entity",
         icon="mdi:chart-line",
         native_unit_of_measurement="kWh",
-        state_class=SensorStateClass.TOTAL,
+        state_class=SensorStateClass.TOTAL_INCREASING,
         value_fn=lambda data: data.get("state"),
         attr_fn=lambda data: data.get("attrs"),
     ),
@@ -67,18 +67,24 @@ async def async_setup_entry(
     entry: SgccConfigEntry,
     async_add_entities: AddEntitiesCallback
 ) -> None:
-    """根据协调器数据，动态为每个户号设置平台实体."""
+    """根据协调器数据，动态为每个户号设置平台实体 (含后续新增户号)."""
     coordinator = entry.runtime_data
-    entities = []
+    known_cons: set[str] = set()
 
-    if coordinator.data:
-        for cons_no in coordinator.data:
-            for description in METER_SENSOR_TYPES:
-                entities.append(
-                    SgccMeterSensor(coordinator, cons_no, description)
-                )
+    def _check_new_cons() -> None:
+        data = coordinator.data or {}
+        new_cons = [cons for cons in data if cons not in known_cons]
+        if not new_cons:
+            return
+        known_cons.update(new_cons)
+        async_add_entities(
+            SgccMeterSensor(coordinator, cons_no, description)
+            for cons_no in new_cons
+            for description in METER_SENSOR_TYPES
+        )
 
-    async_add_entities(entities)
+    _check_new_cons()
+    entry.async_on_unload(coordinator.async_add_listener(_check_new_cons))
 
 class SgccMeterSensor(CoordinatorEntity[SgccCoordinator], SensorEntity):
     """户号传感器实体."""

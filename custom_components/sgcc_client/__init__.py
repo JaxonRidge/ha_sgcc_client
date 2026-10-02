@@ -10,21 +10,53 @@ from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
 from .api import SgccClientProxy
-from .const import CONF_PASSWORD, CONF_USERNAME, DOMAIN, LOGGER, PLATFORMS
+from .const import (
+    ACCOUNT_LIMIT,
+    CONF_ENABLE_CARD,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+    DEFAULT_ENABLE_CARD,
+    DOMAIN,
+    LOGGER,
+    PLATFORMS,
+)
 from .coordinator import SgccCoordinator
+from .storage import async_clear_session
 
 type SgccConfigEntry = ConfigEntry[SgccCoordinator]
 
-def _account_limit() -> int:
-    try:
-        return len(DOMAIN.split('_')[0])
-    except Exception:
-        return 3
+def _card_enabled(hass: HomeAssistant) -> bool:
+    return any(
+        entry.options.get(CONF_ENABLE_CARD, DEFAULT_ENABLE_CARD)
+        for entry in hass.config_entries.async_entries(DOMAIN)
+    )
+
+async def _sync_frontend_assets(hass: HomeAssistant, version: str) -> None:
+    """按开关注册/移除全局前端卡片脚本."""
+    js_url = f"/{DOMAIN}-local/sgcc-client-card.js?v={version}"
+    if _card_enabled(hass):
+        if f"{DOMAIN}_assets_registered" not in hass.data:
+            local_path = hass.config.path("custom_components", DOMAIN, "www")
+            if os.path.exists(local_path):
+                await hass.http.async_register_static_paths([
+                    StaticPathConfig(f"/{DOMAIN}-local", local_path, False)
+                ])
+            hass.data[f"{DOMAIN}_assets_registered"] = True
+        if f"{DOMAIN}_card_js_added" not in hass.data:
+            frontend.add_extra_js_url(hass, js_url)
+            hass.data[f"{DOMAIN}_card_js_added"] = True
+            LOGGER.info("已注册全局前端卡片脚本")
+    elif hass.data.pop(f"{DOMAIN}_card_js_added", False):
+        remover = getattr(frontend, "remove_extra_js_url", None)
+        if remover is not None:
+            remover(hass, js_url)
+            LOGGER.info("已移除全局前端卡片脚本")
 
 async def async_setup_entry(hass: HomeAssistant, entry: SgccConfigEntry) -> bool:
     """集成启动入口."""
@@ -32,29 +64,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: SgccConfigEntry) -> bool
     version = str(integration.version) or "1.0.0"
 
     current_entries = hass.config_entries.async_entries(DOMAIN)
-    if len(current_entries) > _account_limit():
+    if len(current_entries) > ACCOUNT_LIMIT:
         LOGGER.error("环境定力不足以承载过多推演任务，请保持三才平衡。")
-        return False
+        raise ConfigEntryError("账户数量超出上限")
 
-    if f"{DOMAIN}_assets_registered" not in hass.data:
-        local_path = hass.config.path("custom_components", DOMAIN, "www")
-        if os.path.exists(local_path):
-            await hass.http.async_register_static_paths([
-                StaticPathConfig(f"/{DOMAIN}-local", local_path, False)
-            ])
-            frontend.add_extra_js_url(hass, f"/{DOMAIN}-local/sgcc-client-card.js?v={version}")
-            hass.data[f"{DOMAIN}_assets_registered"] = True
+    await _sync_frontend_assets(hass, version)
 
     api = SgccClientProxy(
         hass,
         username=entry.data[CONF_USERNAME],
         password=entry.data[CONF_PASSWORD],
+        entry=entry,
     )
 
     coordinator = SgccCoordinator(hass, api, entry, version)
 
     if len(current_entries) > 1:
-        jitter = random.randint(5, 45)
+        jitter = random.randint(5, 15)
         LOGGER.debug("多账号并发保护，执行相位偏移: %s 秒", jitter)
         await asyncio.sleep(jitter)
 
@@ -62,13 +88,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SgccConfigEntry) -> bool
 
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-
-    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
-
-async def async_reload_entry(hass: HomeAssistant, entry: SgccConfigEntry) -> None:
-    """重载集成."""
-    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass: HomeAssistant, entry: SgccConfigEntry) -> bool:
     """卸载集成."""
@@ -82,7 +102,13 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         storage_key = f"{DOMAIN}.{safe_id}_cache"
         store = Store(hass, 1, storage_key)
         await store.async_remove()
+        await async_clear_session(hass, username)
         LOGGER.info("已清理账号 [%s] 的本地持久化数据", username[:3] + "****")
+    try:
+        integration = await async_get_integration(hass, DOMAIN)
+        await _sync_frontend_assets(hass, str(integration.version))
+    except Exception:  # noqa: BLE001
+        pass
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant,
