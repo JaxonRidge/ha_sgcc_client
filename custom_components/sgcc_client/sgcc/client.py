@@ -51,6 +51,9 @@ INTERACTIVE_CHALLENGE_CODES = {"RK008"}
 # 设备指纹令牌 4 小时新鲜窗 (与 synthetic_device.TOKEN_CACHE_MS 对齐); 提前 5 分钟刷新
 _PROFILE_TOKEN_TTL_MS = 14_400_000
 _PROFILE_REFRESH_SKEW_MS = 300_000
+# 登录会话乐观有效期: 实测上游 token 真实有效期约 15 天, 本地放宽到 14 天留 1 天余量;
+# 以服务端为准, 平时靠 _async_authenticated_data 的失败兜底静默重登, 仅接近 14 天时本地预判重登
+LOGIN_SESSION_TTL_SECONDS = 14 * 86400
 
 class SgccError(Exception):
     pass
@@ -550,11 +553,12 @@ class SgccAppClient:
             user_info = {}
         user_info = _minimize_user_info(user_info)
         user_id = str(user_info.get("userId") or bizrt.get("userId") or "0")
-        # 认证有效期固定 24h, 与数据 TTL 对齐; 降低登录频率以规避风控
+        # 登录会话乐观有效期 14 天: 实测上游 token 真实有效期约 15 天;
+        # 以服务端为准, 本地仅在接近 14 天时预判重登, 平时靠 _async_authenticated_data 的失败兜底静默重登
         self.login_session = LoginSession(
             token=str(bizrt["token"]),
             user_id=user_id,
-            expires_at=time.time() + 86400,
+            expires_at=time.time() + LOGIN_SESSION_TTL_SECONDS,
             user_info=user_info,
         )
         return self.login_session
