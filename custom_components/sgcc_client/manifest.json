@@ -10,5 +10,5 @@
     "iot_class": "cloud_polling",
     "issue_tracker": "https://github.com/JaxonRidge/ha_sgcc_client/issues",
     "requirements": ["gmssl==3.2.2", "cryptography>=46.0.2"],
-    "version": "1.1.1"
+    "version": "1.1.2"
 }
