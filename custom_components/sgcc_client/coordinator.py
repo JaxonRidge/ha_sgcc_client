@@ -225,6 +225,8 @@ class SgccCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _process_and_save(self, raw_results: list) -> dict:
         new_data_map = {}
+        # 服务端会用 0 值(而非 "-")回填未到的日期, 未来日必须在源头裁掉
+        today_ymd = datetime.now(CHINA_TZ).strftime("%Y%m%d")
         for entry in raw_results:
             cons_no = entry["cons_no"]
             if not cons_no:
@@ -252,8 +254,11 @@ class SgccCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 day_pq = str(d.get("dayElePq") or "")
                 if day_pq == "-":
                     continue
+                day = str(d.get("day") or "")
+                if not day or day[:10].replace("-", "") > today_ymd:
+                    continue
                 daily_list.append({
-                    "日期": d.get("day"),
+                    "日期": day,
                     "总电量": _safe_float(day_pq),
                     "峰": _safe_float(d.get("thisPPq")),
                     "平": _safe_float(d.get("thisNPq")),
@@ -261,10 +266,26 @@ class SgccCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "尖峰": _safe_float(d.get("thisTPq")),
                 })
 
+            # 全 0 时剔除该键,  一旦出现非 0(执行尖峰电价的地区)自动恢复。
+            if not any(row["尖峰"] for row in daily_list):
+                for row in daily_list:
+                    row.pop("尖峰", None)
+
             month_list = [{"月份": m.get("month"), "月用电量(kWh)": _safe_float(m.get("monthEleNum")),
                            "月电费(元)": _safe_float(m.get("monthEleCost"))} for m in monthly_raw]
 
             latest_month = max(month_list, key=_month_key) if month_list else None
+
+            # 与每日尖峰同口径: 无尖峰时段时整键不输出
+            month_attrs = {
+                "统计月份": tm.get("month"),
+                "本月峰电量": tm.get("peak"),
+                "本月平电量": tm.get("flat"),
+                "本月谷电量": tm.get("valley"),
+            }
+            if _safe_float(tm.get("tip")):
+                month_attrs["本月尖峰电量"] = tm.get("tip")
+            month_attrs["每天趋势"] = daily_list
 
             new_data_map[cons_no] = {
                 "balance_entity": {
@@ -290,14 +311,7 @@ class SgccCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 },
                 "month_acc_entity": {
                     "state": _safe_float(tm.get("total")),
-                    "attrs": {
-                        "统计月份": tm.get("month"),
-                        "本月峰电量": tm.get("peak"),
-                        "本月平电量": tm.get("flat"),
-                        "本月谷电量": tm.get("valley"),
-                        "本月尖峰电量": tm.get("tip"),
-                        "每天趋势": daily_list
-                    }
+                    "attrs": month_attrs
                 },
                 "monthly_bill_entity": {
                     "state": latest_month.get("月用电量(kWh)", 0) if latest_month else 0,
